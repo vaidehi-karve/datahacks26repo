@@ -1,5 +1,5 @@
 import Papa from 'papaparse'
-import csvFile from '../data/comparison_data_by_state.csv?raw'
+import csvFile from '../../data/comparison_data_by_state.csv?raw'
 
 let approvalLookup = {}
 let nationalAverage = 11.2
