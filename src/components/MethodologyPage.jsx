@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react'
 function getCards(eiaData, stateCode) {
   const resRate = eiaData ? eiaData.residentialPriceCents : 29.0
   const co2Factor = eiaData ? eiaData.co2Factor : 0.512
-  const gasPrice = eiaData?.gasPricePerGallon ?? 3.80
+  const gasPrice = eiaData?.gasPricePerGallon ?? 5.80
   const gasPriceSource = eiaData?.gasPriceSource ?? 'fallback'
   const stateLabel = stateCode || 'CA'
   const isFallback = eiaData?.isFallback ?? !eiaData
