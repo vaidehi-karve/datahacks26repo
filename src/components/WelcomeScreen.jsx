@@ -56,8 +56,11 @@ export default function WelcomeScreen({ onStart }) {
         <p className="mt-10 text-xs text-slate-400">
           Data: U.S. Energy Information Administration · DataHacks 2026
         </p>
-        <p className="mt-10 text-xs text-slate-400">
-          Vaidehi Karve, Arya Verma, Meghana Chittineni, Snigdha Podugu
+        <p className="mt-1 text-xs text-slate-400 font-semibold">
+          Team Meghabyte
+        </p>
+        <p className="mt-0.5 text-xs text-slate-400">
+          Vaidehi Karve · Arya Verma · Meghana Chittineni · Snigdha Podugu
         </p>
       </motion.div>
     </div>
