@@ -5,7 +5,6 @@ import { DECISIONS } from '../data/decisions'
 import { co2Equivalents, fmt$, fmtCO2, paybackLabel } from '../utils/calculations'
 import { useCountUp } from '../hooks/useCountUp'
 import { generateNarration } from '../utils/claudeApi'
-import { getDidYouKnow } from '../utils/geminiApi'
 import { getApprovalTime } from '../utils/approvalTime'
 
 const OPTION_STYLES = [
@@ -113,8 +112,6 @@ function OutcomeView({ lastOutcome, persona, state, onContinue, round, total }) 
   const { decisionId, optionId, outcome } = lastOutcome
   const [narration, setNarration] = useState(null)
   const [loadingNarration, setLoadingNarration] = useState(false)
-  const [didYouKnow, setDidYouKnow] = useState(null)
-  const [loadingDYK, setLoadingDYK] = useState(false)
 
   const decision = DECISIONS.find(d => d.id === decisionId)
   const option = decision?.options.find(o => o.id === optionId)
@@ -135,10 +132,6 @@ function OutcomeView({ lastOutcome, persona, state, onContinue, round, total }) 
     generateNarration(persona, decision, option, outcome)
       .then(setNarration)
       .finally(() => setLoadingNarration(false))
-    setLoadingDYK(true)
-    getDidYouKnow(persona, decision, option, outcome)
-      .then(setDidYouKnow)
-      .finally(() => setLoadingDYK(false))
   }, [decisionId, optionId])
 
   return (
@@ -301,26 +294,6 @@ function OutcomeView({ lastOutcome, persona, state, onContinue, round, total }) 
           </motion.div>
         )}
 
-        {/* Gemini Did You Know card */}
-        {(didYouKnow || loadingDYK) && (
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.42 }}
-            className="bg-amber-50 border border-amber-200 rounded-2xl p-3"
-          >
-            <p className="text-xs font-bold text-amber-600 mb-1">💡 Did You Know?</p>
-            {loadingDYK ? (
-              <div className="space-y-1.5 animate-pulse">
-                <div className="h-2.5 bg-amber-200 rounded w-full" />
-                <div className="h-2.5 bg-amber-200 rounded w-4/5" />
-                <div className="h-2.5 bg-amber-200 rounded w-3/5" />
-              </div>
-            ) : (
-              <p className="text-xs text-slate-700 leading-relaxed">{didYouKnow}</p>
-            )}
-          </motion.div>
-        )}
 
         {/* Data insight */}
         <motion.div
