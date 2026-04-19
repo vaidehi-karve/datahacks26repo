@@ -1,79 +1,105 @@
 import { motion } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
 
-const CARDS = [
-  {
-    color: '#3B82F6',
-    heading: '💡 Monthly Bill',
-    explanation:
-      'Your monthly bill starts at your persona\'s baseline and changes each time you make a decision that affects energy usage or costs.',
-    formula: `New Bill = Previous Bill
+function getCards(eiaData, stateCode) {
+  const resRate = eiaData ? eiaData.residentialPriceCents : 29.0
+  const co2Factor = eiaData ? eiaData.co2Factor : 0.512
+  const gasPrice = eiaData?.gasPricePerGallon ?? 3.80
+  const gasPriceSource = eiaData?.gasPriceSource ?? 'fallback'
+  const stateLabel = stateCode || 'CA'
+  const isFallback = eiaData?.isFallback ?? !eiaData
+  const year = new Date().getFullYear()
+
+  const rateNote = isFallback
+    ? `Using US average fallback: ${resRate.toFixed(1)}¢/kWh`
+    : `Your state (${stateLabel}) rate: ${resRate.toFixed(1)}¢/kWh (Source: EIA 2024)`
+
+  const gasPriceLabel = gasPriceSource === 'state'
+    ? `${stateLabel} average`
+    : gasPriceSource === 'national'
+      ? 'US national average'
+      : 'national fallback'
+
+  return [
+    {
+      color: '#3B82F6',
+      heading: '💡 Monthly Bill',
+      explanation:
+        'Your monthly bill starts at your persona\'s baseline — calculated from real EIA electricity rates for your state — and changes each time you make a decision.',
+      formula: `New Bill = Previous Bill
            + Decision Impact ($/month)
 
-Example: Smart thermostat saves ~$18/month
-based on a ~10% reduction in HVAC costs
-applied to the baseline bill.
+Baseline calculation:
+  • Homeowner: 900 kWh × rate/kWh
+  • Renter:    600 kWh × rate/kWh
+  • Small Biz: 2,500 kWh × rate/kWh
+    (residential or commercial rate)
 
-Baseline bills by persona:
-  • Homeowner (San Diego):          $180/month
-  • Renter (Los Angeles):           $130/month
-  • Small Business (Sacramento):    $620/month`,
-    source:
-      'Source: EIA Residential Energy Consumption Survey (RECS) 2020 — average monthly electricity bills by state and housing type.',
-  },
-  {
-    color: '#10B981',
-    heading: '🌍 CO₂ Avoided',
-    explanation:
-      'Every time you reduce electricity usage or switch to a cleaner source, you avoid CO₂ that would have been emitted by the California grid.',
-    formula: `CO₂ Avoided (tons/yr) =
+Example — Smart thermostat:
+  Saves ~10% of baseline bill/month
+
+${rateNote}`,
+      source:
+        'Source: EIA Residential Energy Consumption Survey (RECS) 2020 — average monthly kWh usage by housing type. Rate: EIA Retail Sales 2024.',
+    },
+    {
+      color: '#10B981',
+      heading: '🌍 CO₂ Avoided',
+      explanation:
+        'Every time you reduce electricity usage or switch to a cleaner source, you avoid CO₂ that would have been emitted by your state\'s grid.',
+      formula: `CO₂ Avoided (tons/yr) =
     kWh Saved Per Year
-    × CA Grid Emissions Factor
+    × State Grid Emissions Factor
     ÷ 2,000   (convert lbs → tons)
 
-CA Grid Emissions Factor:
-    0.512 lbs CO₂ per kWh
+${stateLabel} Grid Emissions Factor:
+    ${co2Factor.toFixed(3)} lbs CO₂ per kWh
 
 Example — Rooftop Solar (7 kW system):
     Annual generation:
         7 kW × 1,500 hrs/yr = 10,500 kWh/yr
     CO₂ avoided:
-        10,500 × 0.512 ÷ 2,000 = 2.69 tons/yr`,
-    source:
-      'Source: EIA Electric Power Annual 2023 — state-level CO₂ emissions factors for electricity generation. California figure: 0.512 lbs CO₂/kWh.',
-  },
-  {
-    color: '#F59E0B',
-    heading: '💰 5-Year Savings',
-    explanation:
-      'This is the total financial impact of each decision over 5 years — projected bill savings minus any upfront costs paid.',
-    formula: `5-Year Savings (per decision) =
+        10,500 × ${co2Factor.toFixed(3)} ÷ 2,000 = ${((10500 * co2Factor) / 2000).toFixed(2)} tons/yr`,
+      source:
+        `Source: EIA Electric Power Annual 2023 — state-level CO₂ emissions factors for electricity generation. ${stateLabel} figure: ${co2Factor.toFixed(3)} lbs CO₂/kWh.`,
+    },
+    {
+      color: '#F59E0B',
+      heading: '💰 5-Year Savings',
+      explanation:
+        'This is the total financial impact of each decision over 5 years — projected bill savings minus any upfront costs paid.',
+      formula: `5-Year Savings (per decision) =
     (Monthly Bill Change × 60 months)
     − Upfront Cost for that decision
 
 Running total = Σ all decisions' 5-yr savings
 
-Example — Smart thermostat:
-    Monthly savings:  $18/month
-    Over 5 years:     $18 × 60 = $1,080
-    Upfront cost:     $150
-    Net 5-yr savings: $1,080 − $150 = $930
+Your state (${stateLabel}) electricity rate:
+    ${resRate.toFixed(1)}¢/kWh (Source: EIA ${year})
 
-Example — New EV:
-    Monthly electricity added: +$51/month
-    Fuel savings vs. gas car: +$1,071/yr
-    Net savings over 5 years: $5,357
-    Upfront cost (net):       $27,500
-    Net 5-yr savings:         −$10,143`,
-    source:
-      'Source: EIA retail electricity price data by state (2024) combined with EPA vehicle efficiency ratings and CA gas price averages.',
-  },
-  {
-    color: '#EF4444',
-    heading: '💳 Upfront Spent',
-    explanation:
-      'Some decisions require paying money upfront before you start saving. This is the running total of all one-time costs across your decisions.',
-    formula: `Upfront Spent = Σ all one-time costs chosen
+Your state gas price (${gasPriceLabel}):
+    $${gasPrice.toFixed(2)}/gallon (Source: EIA ${year})
+
+Example — New EV at your state rates:
+    Annual EV electricity cost:
+        (12,000 mi ÷ 3.5 mi/kWh)
+        × ${resRate.toFixed(1)}¢/kWh
+        = $${Math.round((12000 / 3.5) * resRate / 100).toLocaleString()}/year
+    Annual gas car fuel cost:
+        (12,000 mi ÷ 28 MPG)
+        × $${gasPrice.toFixed(2)}/gal
+        = $${Math.round((12000 / 28) * gasPrice).toLocaleString()}/year
+    Annual savings from EV:
+        $${Math.round((12000 / 28) * gasPrice - (12000 / 3.5) * resRate / 100).toLocaleString()}/year`,
+      source:
+        `Source: EIA retail electricity price data by state (${year}) / EIA Weekly Petroleum Report (${year}) / EPA vehicle efficiency ratings.`,
+    },
+    {
+      color: '#EF4444',
+      heading: '💳 Upfront Spent',
+      explanation:
+        'Some decisions require paying money upfront before you start saving. This is the running total of all one-time costs across your decisions.',
+      formula: `Upfront Spent = Σ all one-time costs chosen
 
 Upfront costs used in the game (net of credits):
   • Smart thermostat:              $150
@@ -94,15 +120,15 @@ Upfront costs used in the game (net of credits):
   • Gas water heater:              $900
   • EV charger vote fee:           $400
   • Do nothing / skip:             $0`,
-    source:
-      'Source: IRS Form 5695 (2024) for federal tax credits. California rebate from CPUC Self-Generation Incentive Program. EV credits from IRA 2022 Section 30D.',
-  },
-  {
-    color: '#8B5CF6',
-    heading: '⭐ Score',
-    explanation:
-      'Your score rewards decisions that reduce CO₂ AND save money. Every ton of CO₂ avoided is worth 50 points; every $10 saved adds 1 point.',
-    formula: `Score =
+      source:
+        'Source: IRS Form 5695 (2024) for federal tax credits. EV credits from IRA 2022 Section 30D.',
+    },
+    {
+      color: '#8B5CF6',
+      heading: '⭐ Score',
+      explanation:
+        'Your score rewards decisions that reduce CO₂ AND save money. Every ton of CO₂ avoided is worth 50 points; every $10 saved adds 1 point.',
+      formula: `Score =
     (Total CO₂ Avoided tons/yr × 50)
     + (Total 5-Year Savings ÷ 10)
 
@@ -110,22 +136,18 @@ Upfront costs used in the game (net of credits):
 
 Example — Smart thermostat only:
     CO₂:     0.4 tons × 50    =  20 pts
-    Savings: $930 ÷ 10         =  93 pts
+    Savings: ~$930 ÷ 10        =  93 pts
     Score:                        113 pts
-
-Example — Rooftop solar + no car:
-    CO₂:     2.7 + 3.8 = 6.5t × 50 = 325 pts
-    Savings: $12,325 + $4,329 ÷ 10  = 167 pts
-    Score:                              492 pts
 
 Grade thresholds:
     A+  ≥ 500 pts    B  ≥ 150 pts
     A   ≥ 300 pts    C  ≥  50 pts
                      D  <  50 pts`,
-    source:
-      'Scoring formula designed by the Power Down team to balance environmental and financial impact equally, using EIA data ranges for typical California household decisions.',
-  },
-]
+      source:
+        'Scoring formula designed by the Power Down team to balance environmental and financial impact equally, using EIA data ranges for typical US household decisions.',
+    },
+  ]
+}
 
 function FormulaCard({ card }) {
   return (
@@ -153,7 +175,11 @@ function FormulaCard({ card }) {
   )
 }
 
-export default function MethodologyPage({ onClose }) {
+export default function MethodologyPage({ onClose, eiaData, stateCode }) {
+  const cards = getCards(eiaData, stateCode)
+  const resRate = eiaData ? eiaData.residentialPriceCents.toFixed(1) : '29.0'
+  const stateLabel = stateCode || 'CA'
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -164,7 +190,6 @@ export default function MethodologyPage({ onClose }) {
       style={{ background: '#FAFAFA', zIndex: 9999 }}
     >
       <div className="max-w-2xl mx-auto px-4 py-8">
-        {/* Top back button */}
         <button
           onClick={onClose}
           className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors mb-8"
@@ -173,7 +198,6 @@ export default function MethodologyPage({ onClose }) {
           Back to Game
         </button>
 
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-black text-slate-900 mb-2">
             How We Calculate Your Numbers
@@ -183,16 +207,14 @@ export default function MethodologyPage({ onClose }) {
           </p>
         </div>
 
-        {/* Formula cards */}
-        {CARDS.map((card) => (
+        {cards.map((card) => (
           <FormulaCard key={card.heading} card={card} />
         ))}
 
-        {/* Footer */}
         <div className="border-t border-slate-200 pt-6 mt-2">
           <p className="text-sm text-slate-500 leading-relaxed">
-            All financial calculations use 2024 EIA data for California electricity rates.
-            CO₂ calculations use the California grid emissions factor of 0.512 lbs/kWh from
+            All financial calculations use {eiaData ? `real EIA 2024 data for ${stateLabel} (${resRate}¢/kWh residential rate)` : 'EIA 2024 data for California electricity rates'}.
+            CO₂ calculations use the {stateLabel} grid emissions factor of {eiaData ? eiaData.co2Factor.toFixed(3) : '0.512'} lbs/kWh from
             EIA's Electric Power Annual. Upfront costs reflect 2024 market prices and current
             federal/state incentive programs.
           </p>

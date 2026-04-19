@@ -24,18 +24,41 @@ const initialState = {
   joinedCommunitySolar: false,
   communityDone: false,
   votedYesCharger: false,
+  // location fields
+  zipCode: null,
+  stateCode: null,
+  stateName: null,
+  eiaData: null,
+  isFallback: false,
   screen: 'welcome', // welcome | persona | decision | outcome | final
   lastOutcome: null,
+}
+
+function calcBaselineBill(personaId, eiaData) {
+  if (!eiaData) return null
+  if (personaId === 'homeowner') return Math.round((eiaData.residentialPriceCents / 100) * 900)
+  if (personaId === 'renter') return Math.round((eiaData.residentialPriceCents / 100) * 600)
+  if (personaId === 'smallbiz') return Math.round((eiaData.commercialPriceCents / 100) * 2500)
+  return null
 }
 
 export function useGameState() {
   const [state, setState] = useState(initialState)
 
-  const selectPersona = useCallback((persona) => {
+  // Called from App after location data is fetched — starts the game
+  const selectPersona = useCallback((persona, locationData) => {
+    const eiaData = locationData?.eiaData ?? null
+    const realBill = calcBaselineBill(persona.id, eiaData)
+    const monthlyBill = realBill ?? persona.monthlyBill
     setState((s) => ({
       ...s,
-      persona,
-      currentMonthlyBill: persona.monthlyBill,
+      persona: { ...persona, monthlyBill },
+      currentMonthlyBill: monthlyBill,
+      zipCode: locationData?.zipCode ?? null,
+      stateCode: locationData?.stateCode ?? null,
+      stateName: locationData?.stateName ?? null,
+      eiaData,
+      isFallback: locationData?.isFallback ?? false,
       screen: 'decision',
       round: 0,
     }))
@@ -43,7 +66,7 @@ export function useGameState() {
 
   const makeDecision = useCallback((decisionId, optionId) => {
     setState((s) => {
-      const outcome = getOutcome(decisionId, optionId, s.persona)
+      const outcome = getOutcome(decisionId, optionId, s.persona, s.eiaData)
       if (!outcome) return s
       return {
         ...s,

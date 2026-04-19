@@ -156,6 +156,45 @@ export default function OutcomeScreen({ lastOutcome, persona, state, onContinue,
               </motion.div>
             </div>
 
+            {/* Fuel cost breakdown — shown for all car decisions */}
+            {outcome.fuelBreakdown && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.55 }}
+                className="bg-slate-50 border border-slate-200 rounded-3xl p-4 mb-4"
+              >
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
+                  ⛽ Fuel Cost Breakdown
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <FuelStat
+                    label={`⛽ Gas price (${outcome.fuelBreakdown.gasPriceSource === 'state'
+                      ? (state.stateName || state.stateCode || 'state')
+                      : 'US national'} avg)`}
+                    value={`$${outcome.fuelBreakdown.gasPricePerGallon.toFixed(2)}/gal`}
+                  />
+                  <FuelStat
+                    label="🚗 Gas car fuel/year"
+                    value={`$${Math.round(outcome.fuelBreakdown.annualGasCost).toLocaleString()}`}
+                  />
+                  <FuelStat
+                    label="⚡ EV electricity/year"
+                    value={`$${Math.round(outcome.fuelBreakdown.annualEVCost).toLocaleString()}`}
+                  />
+                  <FuelStat
+                    label="💰 EV annual savings"
+                    value={`$${Math.round(outcome.fuelBreakdown.evAnnualSavings).toLocaleString()}`}
+                    positive={outcome.fuelBreakdown.evAnnualSavings > 0}
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-2">
+                  Source: EIA Weekly Petroleum & Retail Electricity Data
+                  {outcome.fuelBreakdown.gasPriceSource === 'fallback' && ' · Gas price: national fallback'}
+                </p>
+              </motion.div>
+            )}
+
             {/* CO2 equivalents */}
             {isSavingCO2 && outcome.co2TonsPerYear > 0.1 && (
               <motion.div
@@ -255,6 +294,17 @@ export default function OutcomeScreen({ lastOutcome, persona, state, onContinue,
           </motion.div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function FuelStat({ label, value, positive }) {
+  return (
+    <div className="bg-white rounded-xl px-3 py-2 border border-slate-100">
+      <p className="text-xs text-slate-500 leading-tight mb-0.5">{label}</p>
+      <p className={`text-sm font-black ${positive === true ? 'text-green-600' : positive === false ? 'text-rose-600' : 'text-slate-800'}`}>
+        {value}
+      </p>
     </div>
   )
 }

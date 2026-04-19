@@ -37,7 +37,7 @@ function useCountUp(target, duration = 1400, delay = 200) {
 }
 
 export default function FinalScreen({ state, onRestart }) {
-  const { totalBillSavings, totalCO2Avoided, totalUpfrontCost } = state
+  const { totalBillSavings, totalCO2Avoided, totalUpfrontCost, stateName } = state
   const [co2Trend, setCo2Trend] = useState(null)
   const score = calcScore(totalCO2Avoided, totalBillSavings)
   const gradeInfo = getGrade(score)
@@ -98,10 +98,10 @@ export default function FinalScreen({ state, onRestart }) {
       color: 'border-purple-300 bg-purple-50',
       headerColor: 'text-purple-700',
       items: [
-        { label: 'CA grid today', value: '28% fossil fuel', pos: false },
+        { label: 'Grid today', value: 'Transitioning to clean', pos: true },
         { label: 'Your contribution', value: `${gridPct}% cleaner`, pos: true },
         { label: 'Biggest lever', value: 'Permit reform = 3× solar', pos: true },
-        { label: 'CA 2045 goal', value: '100% clean electricity', pos: true },
+        { label: '2045 national goal', value: '100% clean electricity', pos: true },
       ],
     },
   ]
@@ -211,7 +211,7 @@ export default function FinalScreen({ state, onRestart }) {
             it's <span className="font-bold" style={{ color: '#B45309' }}>voting for local energy policy</span> and showing up to your city council's permitting reform hearing.
           </p>
           <p className="text-sm" style={{ color: '#6B7280' }}>
-            CA's solar permitting process adds $2,000–4,000 per installation — reform could 3× statewide solar adoption overnight.
+            {stateName || 'Your state'}'s solar permitting process adds $2,000–4,000 per installation — reform could 3× statewide solar adoption overnight.
           </p>
           <p className="text-xs mt-3" style={{ color: '#9CA3AF' }}>Source: SEIA Permitting Reform Study 2024 / EIA Annual Energy Outlook</p>
         </motion.div>

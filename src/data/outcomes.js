@@ -1,8 +1,9 @@
 // All constants sourced from EIA data
 // EIA Electricity Retail Sales, EIA RECS, EIA emissions factors
 
-const CA_RESIDENTIAL_RATE = 0.29       // $/kWh — EIA 2024 retail sales
-const CA_COMMERCIAL_RATE = 0.21        // $/kWh — EIA 2024 commercial
+const CA_RESIDENTIAL_RATE = 0.29       // $/kWh — EIA 2024 retail sales (CA fallback)
+const CA_COMMERCIAL_RATE = 0.21        // $/kWh — EIA 2024 commercial (CA fallback)
+const CA_GRID_CO2_LBS_PER_KWH = 0.512 // lbs CO2/kWh — EIA 2023 eGRID CA (fallback)
 const TOU_OFF_PEAK = 0.14              // $/kWh — SCE TOU-D-PRIME off-peak
 const TOU_PEAK = 0.42                  // $/kWh — SCE TOU-D-PRIME peak
 const TOU_BASELINE = 0.29             // $/kWh — flat rate equivalent
@@ -10,9 +11,8 @@ const PEAK_USAGE_PCT = 0.42           // % usage during peak — EIA RECS 2020
 const CA_SOLAR_KWH_PER_KW_YR = 1500  // kWh/kW/yr — EIA solar resource data CA
 const RESIDENTIAL_SYSTEM_KW = 7       // typical residential system size
 const COMMERCIAL_SYSTEM_KW = 50       // typical small commercial system
-const CA_GRID_CO2_LBS_PER_KWH = 0.512 // lbs CO2/kWh — EIA 2023 eGRID CA
 const GAS_CO2_LBS_PER_GALLON = 19.6   // lbs CO2/gallon gasoline — EIA
-const CA_GAS_PRICE = 4.82             // $/gallon — EIA weekly retail 2024
+const NATIONAL_GAS_PRICE = 3.80       // $/gallon — national average fallback
 const AVG_MILES_PER_YEAR = 12000      // miles — FHWA 2023
 const GAS_CAR_MPG = 28                // EPA average new car 2024
 const EV_MILES_PER_KWH = 3.5         // miles/kWh — EPA average EV efficiency
@@ -32,12 +32,15 @@ function calcSolarAnnualSavings(personaId, rate) {
   return { annualKwh, annualSavings: annualKwh * rate }
 }
 
-function calcSolarCO2(annualKwh) {
-  return (annualKwh * CA_GRID_CO2_LBS_PER_KWH) / 2000 // tons
+function calcSolarCO2(annualKwh, co2LbsPerKwh) {
+  return (annualKwh * co2LbsPerKwh) / 2000 // tons
 }
 
-export function getOutcome(decisionId, optionId, persona) {
-  const rate = persona.id === 'smallbiz' ? CA_COMMERCIAL_RATE : CA_RESIDENTIAL_RATE
+export function getOutcome(decisionId, optionId, persona, eiaData) {
+  const residentialRate = eiaData ? eiaData.residentialPriceCents / 100 : CA_RESIDENTIAL_RATE
+  const commercialRate = eiaData ? eiaData.commercialPriceCents / 100 : CA_COMMERCIAL_RATE
+  const co2LbsPerKwh = eiaData ? eiaData.co2Factor : CA_GRID_CO2_LBS_PER_KWH
+  const rate = persona.id === 'smallbiz' ? commercialRate : residentialRate
   const bill = persona.monthlyBill
 
   const outcomes = {
@@ -55,16 +58,19 @@ export function getOutcome(decisionId, optionId, persona) {
           paybackMonths: 0,
         }
       },
-      thermostat: () => ({
-        monthlyBillChange: -18,
-        upfrontCost: 150,
-        fiveYearSavings: 18 * 12 * 5 - 150,
-        co2TonsPerYear: 0.4,
-        flags: { hasSmartThermostat: true },
-        insight: 'Smart thermostats reduce HVAC energy use by 10–15%. HVAC is 47% of home energy use.',
-        source: 'EIA RECS 2020 / EPA ENERGY STAR',
-        paybackMonths: Math.round(150 / 18),
-      }),
+      thermostat: () => {
+        const monthlySavings = Math.round(bill * 0.10)
+        return {
+          monthlyBillChange: -monthlySavings,
+          upfrontCost: 150,
+          fiveYearSavings: monthlySavings * 12 * 5 - 150,
+          co2TonsPerYear: 0.4,
+          flags: { hasSmartThermostat: true },
+          insight: 'Smart thermostats reduce HVAC energy use by 10–15%. HVAC is 47% of home energy use.',
+          source: 'EIA RECS 2020 / EPA ENERGY STAR',
+          paybackMonths: Math.round(150 / monthlySavings),
+        }
+      },
       nothing: () => ({
         monthlyBillChange: 0,
         upfrontCost: 0,
@@ -97,7 +103,7 @@ export function getOutcome(decisionId, optionId, persona) {
           monthlyBillChange: -Math.round(annualSavings / 12),
           upfrontCost: 0,
           fiveYearSavings: Math.round(annualSavings * 5 - netCost * 0.05 * 5),
-          co2TonsPerYear: Math.round(calcSolarCO2(annualKwh) * 10) / 10,
+          co2TonsPerYear: Math.round(calcSolarCO2(annualKwh, co2LbsPerKwh) * 10) / 10,
           flags: { hasSolar: true },
           insight: 'CA solar installations grew 34% YoY in 2023. Average payback: 7–9 years for residential.',
           source: 'EIA Solar Power Operational Data 2024 / CPUC NEM 3.0',
@@ -112,7 +118,7 @@ export function getOutcome(decisionId, optionId, persona) {
           monthlyBillChange: 0,
           upfrontCost: 0,
           fiveYearSavings: Math.round(annualSavings * 2),
-          co2TonsPerYear: Math.round(calcSolarCO2(annualKwh) * 10) / 10 * 0.4,
+          co2TonsPerYear: Math.round(calcSolarCO2(annualKwh, co2LbsPerKwh) * 10) / 10 * 0.4,
           flags: {},
           insight: 'Bundling solar with roof replacement saves $2,000–4,000 in labor. But 3 years delay = 3 years of full bills.',
           source: 'SEIA Solar Market Insight 2024',
@@ -186,42 +192,63 @@ export function getOutcome(decisionId, optionId, persona) {
 
     car: {
       used_gas: () => {
-        const annualFuel = (AVG_MILES_PER_YEAR / GAS_CAR_MPG) * CA_GAS_PRICE
+        const gasPrice = eiaData?.gasPricePerGallon ?? NATIONAL_GAS_PRICE
+        const gasPriceSource = eiaData?.gasPriceSource ?? 'fallback'
+        const annualGasCost = (AVG_MILES_PER_YEAR / GAS_CAR_MPG) * gasPrice
+        const annualEVCost = (AVG_MILES_PER_YEAR / EV_MILES_PER_KWH) * residentialRate
         const annualCO2 = (AVG_MILES_PER_YEAR / GAS_CAR_MPG) * GAS_CO2_LBS_PER_GALLON / 2000
         return {
-          monthlyBillChange: Math.round(annualFuel / 12),
+          monthlyBillChange: Math.round(annualGasCost / 12),
           upfrontCost: 12000,
-          fiveYearSavings: -Math.round(annualFuel * 5),
+          fiveYearSavings: -Math.round(annualGasCost * 5),
           co2TonsPerYear: -Math.round(annualCO2 * 10) / 10,
           flags: { hasGasCar: true },
-          insight: `At $${CA_GAS_PRICE}/gallon, fuel costs for a 28MPG car are $${Math.round(annualFuel).toLocaleString()}/year. EIA projects CA gas prices to stay above $4 through 2026.`,
+          insight: `At $${gasPrice.toFixed(2)}/gallon, fuel costs for a 28MPG car are $${Math.round(annualGasCost).toLocaleString()}/year.`,
           source: 'EIA Weekly Petroleum Report 2024 / EIA STEO 2024',
           paybackMonths: null,
+          fuelBreakdown: {
+            gasPricePerGallon: gasPrice,
+            gasPriceSource,
+            annualGasCost,
+            annualEVCost,
+            evAnnualSavings: annualGasCost - annualEVCost,
+          },
         }
       },
       used_ev: () => {
-        const annualEV = (AVG_MILES_PER_YEAR / EV_MILES_PER_KWH) * CA_RESIDENTIAL_RATE
-        const annualEVCO2 = (AVG_MILES_PER_YEAR / EV_MILES_PER_KWH) * CA_GRID_CO2_LBS_PER_KWH / 2000
-        const annualGas = (AVG_MILES_PER_YEAR / GAS_CAR_MPG) * CA_GAS_PRICE
-        const savedVsGas = annualGas - annualEV
+        const gasPrice = eiaData?.gasPricePerGallon ?? NATIONAL_GAS_PRICE
+        const gasPriceSource = eiaData?.gasPriceSource ?? 'fallback'
+        const annualEVCost = (AVG_MILES_PER_YEAR / EV_MILES_PER_KWH) * residentialRate
+        const annualEVCO2 = (AVG_MILES_PER_YEAR / EV_MILES_PER_KWH) * co2LbsPerKwh / 2000
+        const annualGasCost = (AVG_MILES_PER_YEAR / GAS_CAR_MPG) * gasPrice
+        const savedVsGas = annualGasCost - annualEVCost
         return {
-          monthlyBillChange: Math.round(annualEV / 12),
+          monthlyBillChange: Math.round(annualEVCost / 12),
           upfrontCost: 14000,
           fiveYearSavings: Math.round(savedVsGas * 5) - 2000,
           co2TonsPerYear: -Math.round(annualEVCO2 * 10) / 10,
           flags: { hasEV: true },
-          insight: `Used EVs save $${Math.round(savedVsGas).toLocaleString()}/year on fuel vs. the average gas car. CA grid is 60% clean, so EVs emit ~50% less CO₂ per mile than gas.`,
+          insight: `Used EVs save $${Math.round(savedVsGas).toLocaleString()}/year on fuel vs. the average gas car. EVs emit significantly less CO₂ per mile than gas vehicles.`,
           source: 'EIA Electricity Data 2024 / EIA emissions factors / EPA',
           paybackMonths: null,
+          fuelBreakdown: {
+            gasPricePerGallon: gasPrice,
+            gasPriceSource,
+            annualGasCost,
+            annualEVCost,
+            evAnnualSavings: savedVsGas,
+          },
         }
       },
       new_ev: () => {
-        const annualEV = (AVG_MILES_PER_YEAR / EV_MILES_PER_KWH) * CA_RESIDENTIAL_RATE
-        const annualGas = (AVG_MILES_PER_YEAR / GAS_CAR_MPG) * CA_GAS_PRICE
-        const savedVsGas = annualGas - annualEV
-        const annualEVCO2 = (AVG_MILES_PER_YEAR / EV_MILES_PER_KWH) * CA_GRID_CO2_LBS_PER_KWH / 2000
+        const gasPrice = eiaData?.gasPricePerGallon ?? NATIONAL_GAS_PRICE
+        const gasPriceSource = eiaData?.gasPriceSource ?? 'fallback'
+        const annualEVCost = (AVG_MILES_PER_YEAR / EV_MILES_PER_KWH) * residentialRate
+        const annualGasCost = (AVG_MILES_PER_YEAR / GAS_CAR_MPG) * gasPrice
+        const savedVsGas = annualGasCost - annualEVCost
+        const annualEVCO2 = (AVG_MILES_PER_YEAR / EV_MILES_PER_KWH) * co2LbsPerKwh / 2000
         return {
-          monthlyBillChange: Math.round(annualEV / 12),
+          monthlyBillChange: Math.round(annualEVCost / 12),
           upfrontCost: 27500,
           fiveYearSavings: Math.round(savedVsGas * 5) - 15500,
           co2TonsPerYear: -Math.round(annualEVCO2 * 10) / 10,
@@ -229,18 +256,38 @@ export function getOutcome(decisionId, optionId, persona) {
           insight: 'New EV prices dropped 22% in 2023. By 2026 EIA projects EVs will reach purchase price parity with comparable gas vehicles.',
           source: 'EIA Annual Energy Outlook 2024 / BloombergNEF EV Outlook',
           paybackMonths: null,
+          fuelBreakdown: {
+            gasPricePerGallon: gasPrice,
+            gasPriceSource,
+            annualGasCost,
+            annualEVCost,
+            evAnnualSavings: savedVsGas,
+          },
         }
       },
-      no_car: () => ({
-        monthlyBillChange: -100,
-        upfrontCost: 1200,
-        fiveYearSavings: Math.round(((AVG_MILES_PER_YEAR / GAS_CAR_MPG) * CA_GAS_PRICE - 1200) * 5),
-        co2TonsPerYear: 3.8,
-        flags: { noCar: true },
-        insight: 'Transit riders produce 45% less CO₂ per mile than solo car commuters. Only 14% of CA trips are currently made by transit.',
-        source: 'APTA Public Transportation Fact Book 2024 / EIA',
-        paybackMonths: null,
-      }),
+      no_car: () => {
+        const gasPrice = eiaData?.gasPricePerGallon ?? NATIONAL_GAS_PRICE
+        const gasPriceSource = eiaData?.gasPriceSource ?? 'fallback'
+        const annualGasCost = (AVG_MILES_PER_YEAR / GAS_CAR_MPG) * gasPrice
+        const annualEVCost = (AVG_MILES_PER_YEAR / EV_MILES_PER_KWH) * residentialRate
+        return {
+          monthlyBillChange: -100,
+          upfrontCost: 1200,
+          fiveYearSavings: Math.round((annualGasCost - 1200) * 5),
+          co2TonsPerYear: 3.8,
+          flags: { noCar: true },
+          insight: 'Transit riders produce 45% less CO₂ per mile than solo car commuters. Only 14% of CA trips are currently made by transit.',
+          source: 'APTA Public Transportation Fact Book 2024 / EIA',
+          paybackMonths: null,
+          fuelBreakdown: {
+            gasPricePerGallon: gasPrice,
+            gasPriceSource,
+            annualGasCost,
+            annualEVCost,
+            evAnnualSavings: annualGasCost - annualEVCost,
+          },
+        }
+      },
     },
 
     appliance: {
@@ -255,20 +302,20 @@ export function getOutcome(decisionId, optionId, persona) {
         paybackMonths: null,
       }),
       electric_heater: () => ({
-        monthlyBillChange: Math.round(4800 * CA_RESIDENTIAL_RATE / 12),
+        monthlyBillChange: Math.round(4800 * residentialRate / 12),
         upfrontCost: 950,
-        fiveYearSavings: -Math.round(4800 * CA_RESIDENTIAL_RATE * 5),
-        co2TonsPerYear: -Math.round((4800 * CA_GRID_CO2_LBS_PER_KWH / 2000) * 10) / 10,
+        fiveYearSavings: -Math.round(4800 * residentialRate * 5),
+        co2TonsPerYear: -Math.round((4800 * co2LbsPerKwh / 2000) * 10) / 10,
         flags: {},
-        insight: 'Standard electric water heaters are the most expensive option to operate — they\'re often less efficient than even gas in CA.',
+        insight: 'Standard electric water heaters are the most expensive option to operate — they\'re often less efficient than even gas in high-rate states.',
         source: 'EIA RECS 2020',
         paybackMonths: null,
       }),
       heat_pump: () => {
         const annualKwh = 1400
-        const annualCost = annualKwh * CA_RESIDENTIAL_RATE
-        const annualCO2 = (annualKwh * CA_GRID_CO2_LBS_PER_KWH) / 2000
-        const savedVsElectric = 4800 * CA_RESIDENTIAL_RATE - annualCost
+        const annualCost = annualKwh * residentialRate
+        const annualCO2 = (annualKwh * co2LbsPerKwh) / 2000
+        const savedVsElectric = 4800 * residentialRate - annualCost
         return {
           monthlyBillChange: -Math.round(savedVsElectric / 12),
           upfrontCost: 1800 - 300,
@@ -281,14 +328,14 @@ export function getOutcome(decisionId, optionId, persona) {
         }
       },
       solar_water: () => ({
-        monthlyBillChange: -Math.round((4800 - 300) * CA_RESIDENTIAL_RATE / 12),
+        monthlyBillChange: -Math.round((4800 - 300) * residentialRate / 12),
         upfrontCost: 3200,
-        fiveYearSavings: Math.round((4800 - 300) * CA_RESIDENTIAL_RATE * 5) - (3200 - 950),
-        co2TonsPerYear: Math.round(((4800 - 300) * CA_GRID_CO2_LBS_PER_KWH / 2000) * 10) / 10,
+        fiveYearSavings: Math.round((4800 - 300) * residentialRate * 5) - (3200 - 950),
+        co2TonsPerYear: Math.round(((4800 - 300) * co2LbsPerKwh / 2000) * 10) / 10,
         flags: { hasSolarWater: true },
-        insight: 'Solar water heaters offset 50–80% of water heating costs. Less complex than PV solar — no inverter, no permitting in most CA counties.',
+        insight: 'Solar water heaters offset 50–80% of water heating costs. Less complex than PV solar — no inverter, no permitting in most counties.',
         source: 'NREL Solar Water Heating Analysis 2023',
-        paybackMonths: Math.round(3200 / ((4800 - 300) * CA_RESIDENTIAL_RATE / 12)),
+        paybackMonths: Math.round(3200 / ((4800 - 300) * residentialRate / 12)),
       }),
     },
 
@@ -353,7 +400,7 @@ export const EIA_CONSTANTS = {
   TOU_PEAK,
   CA_GRID_CO2_LBS_PER_KWH,
   GAS_CO2_LBS_PER_GALLON,
-  CA_GAS_PRICE,
+  NATIONAL_GAS_PRICE,
   AVG_MILES_PER_YEAR,
   CA_SOLAR_KWH_PER_KW_YR,
   RESIDENTIAL_SYSTEM_KW,

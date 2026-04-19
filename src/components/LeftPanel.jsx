@@ -27,7 +27,12 @@ export default function LeftPanel({ state, round, total }) {
             <p className="text-sm font-bold text-white leading-tight">{persona?.name}</p>
           </div>
         </div>
-        <p className="text-xs text-slate-500 mt-1">{persona?.location}</p>
+        <p className="text-xs text-slate-500 mt-1">
+          {state.zipCode && state.stateName
+            ? `${state.zipCode}, ${state.stateName}`
+            : (persona?.location ?? '')}
+          {state.isFallback && <span className="ml-1 text-yellow-500">~ est.</span>}
+        </p>
       </div>
 
       {/* Score */}
@@ -78,6 +83,7 @@ export default function LeftPanel({ state, round, total }) {
           value={`$${billDisplay}`}
           sub="per month"
           valueClass={currentMonthlyBill < (persona?.monthlyBill ?? 999) ? 'text-green-400' : 'text-white'}
+          estimated={state.isFallback}
         />
 
         <StatBlock
@@ -87,6 +93,7 @@ export default function LeftPanel({ state, round, total }) {
           value={`${(co2Display / 10).toFixed(1)}t`}
           sub="per year"
           valueClass={totalCO2Avoided > 0 ? 'text-emerald-400' : 'text-slate-300'}
+          estimated={state.isFallback}
         />
 
         <StatBlock
@@ -96,6 +103,7 @@ export default function LeftPanel({ state, round, total }) {
           value={`$${savingsDisplay.toLocaleString()}`}
           sub="projected"
           valueClass={totalBillSavings > 0 ? 'text-green-400' : 'text-slate-300'}
+          estimated={state.isFallback}
         />
 
         <StatBlock
@@ -105,6 +113,7 @@ export default function LeftPanel({ state, round, total }) {
           value={`$${costDisplay.toLocaleString()}`}
           sub="total so far"
           valueClass="text-rose-400"
+          estimated={state.isFallback}
         />
       </div>
 
@@ -141,18 +150,23 @@ export default function LeftPanel({ state, round, total }) {
       {/* Methodology modal */}
       <AnimatePresence>
         {showMethodology && (
-          <MethodologyPage onClose={() => setShowMethodology(false)} />
+          <MethodologyPage
+          onClose={() => setShowMethodology(false)}
+          eiaData={state.eiaData}
+          stateCode={state.stateCode}
+        />
         )}
       </AnimatePresence>
     </div>
   )
 }
 
-function StatBlock({ emoji, label, tooltip, value, sub, valueClass }) {
+function StatBlock({ emoji, label, tooltip, value, sub, valueClass, estimated }) {
   return (
     <div>
       <p className="text-xs text-slate-400 uppercase tracking-wider mb-1 flex items-center">
         {emoji} <span className="ml-1">{label}</span>
+        {estimated && <span className="ml-1 text-yellow-500 normal-case tracking-normal text-xs">~ est.</span>}
         {tooltip && <InfoTooltip content={tooltip} />}
       </p>
       <motion.p
