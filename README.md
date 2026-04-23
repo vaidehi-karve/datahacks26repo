@@ -1,17 +1,14 @@
-# ⚡ Power Down
+# Power Down
 
-> An interactive energy decision simulator showing teens and young adults the real financial and environmental impact of their everyday energy choices — powered by live US government data.
+> An interactive energy decision simulator showing teens and young adults the real financial and environmental impact of their everyday energy choices, powered by live US government data.
 
-[![Built With React](https://img.shields.io/badge/Built%20With-React-61DAFB?logo=react&logoColor=white)](https://react.dev)
-[![Powered by EIA](https://img.shields.io/badge/Data-EIA%20Open%20API-003087)](https://www.eia.gov/opendata/)
-[![ZenPower Dataset](https://img.shields.io/badge/Dataset-ZenPower-F59E0B)](https://datahacks.ds3ucsd.com)
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed-Vercel-000000?logo=vercel)](https://vercel.com)
-
-**[Live Demo →](https://power-down.vercel.app)**
 
 Built by **Team Meghabyte** for **DataHacks 2026** at UC San Diego
 
-- Tracks: Data Analytics + Product & Entrepreneurship | Theme: Environmental, Climate Science & Sustainability
+Learn more about our project [here](https://devpost.com/software/solar-city?_gl=1*1f94my0*_gcl_au*NzcyODk3MTA2LjE3NzY5Njk1NzM.*_ga*MTY0NDYxNjkxMS4xNzc2OTY5NTc0*_ga_0YHJK3Y10M*czE3NzY5Njk1NzMkbzEkZzEkdDE3NzY5Njk1NzckajU2JGwwJGgw).
+
+
+Vercel link → [Use Power Down](https://powerdown.vercel.app/)
 
 ---
 
@@ -39,7 +36,7 @@ Power Down is a React and Vite app deployed on Vercel, built around three layers
 
 ---
 
-## Challenges We Ran Into
+## Challenges
 
 One of the biggest challenges was making data usable in an interactive simulation. Government datasets are not designed for real-time user interaction, so we had to structure and simplify them without losing accuracy, which meant carefully connecting EIA prices, ZenPower permit records, and CO₂ factors into coherent calculations. Another challenge was designing a system where decisions feel both realistic and immediate. Modeling long-term impacts like cost savings, emissions reduction, and payback periods required balancing realism with user experience. We also faced difficulty designing the visualization system so that every decision changes the environment without overwhelming the user.
 
@@ -47,7 +44,7 @@ Anticipating load inconsistencies with the EIA API, we built a full fallback sys
 
 ---
 
-## Accomplishments We're Proud Of
+## Accomplishments
 
 We are proud of building a fully interactive simulation that connects data to user decision-making in real time. A major accomplishment was creating a system where financial and environmental impacts are not only calculated accurately but also visualized instantly through changes in the user's environment. We are also proud of the transparency feature that lets users see how outcomes are calculated, helping build trust and making the learning process more meaningful. Every number in Power Down is traceable to a real source. When the app tells a user in Texas their solar installation saves $1,200 per year, that uses Texas's actual EIA rate. When it tells a Florida user their permit takes 13.89 days on average, that comes directly from ZenPower.
 
@@ -116,4 +113,4 @@ npm run dev
 5. Open [http://localhost:5173](http://localhost:5173)
 
 
-### Vercel Link: [Here](https://powerdown-q4cq98pi5-vkarve-3515s-projects.vercel.app?_vercel_share=jSMlqynfyDm5fRXpOS6WCMWtQFlKBJNi)
+This tool was bi
